@@ -42,16 +42,16 @@ router.post("/create", (req, res) => {
                       id: user.studentId,
                       emailAddress: user.email,
                       name: user.name,
-                      collegeName: "VJTI",
-                      universityName: "Mumbai University",
-                      branch: "Information Technology",
-                      degree: "BTech",
+                      collegeName: "ICTU",
+                      universityName: "University Beua",
+                      branch: "ICT",
+                      degree: "Bachelor's",
                       CPI: "9.0",
                       birthDate: "01/01/01",
                       collegeID: user.studentId,
-                      graduationDate: "20/05/2022",
+                      graduationDate: "20/06/2026",
                       address:
-                        "VJTI Hostel,VJTI College, Five Garden Circle,Matunga-40001",
+                        "Yaounde , Messassi Zoatupsi",
                       guardian: "Parent Name",
                     };
                     const hash = objectHash(credentialSubject);
