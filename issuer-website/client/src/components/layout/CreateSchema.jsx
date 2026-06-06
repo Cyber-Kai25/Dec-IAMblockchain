@@ -32,13 +32,14 @@ const CreateSchema = () => {
 
   const addProperty = (e) => {
     e.preventDefault();
-    setForm((prev) => [...prev, { key: "", propType: "string", propFormat: "text" }]);
+    setForm((prev) => [...prev, { key: "", propType: "string", propFormat: "text", isUniqueId: false }]);
   };
 
   const onPropertyChange = (e, index) => {
-    const { name: propertyName, value: propertyValue } = e.target;
+    const { name: propertyName, value: propertyValue, type, checked } = e.target;
+    const val = type === "checkbox" ? checked : propertyValue;
     setForm((prev) =>
-      prev.map((item, ind) => (ind === index ? { ...item, [propertyName]: propertyValue } : item))
+      prev.map((item, ind) => (ind === index ? { ...item, [propertyName]: val } : item))
     );
   };
 
@@ -231,7 +232,7 @@ const CreateSchema = () => {
                                   required
                                 />
                               </div>
-                              <div className="col-md-4">
+                              <div className="col-md-3">
                                 <label className="auth-label" style={{ fontSize: "0.7rem" }}>Data Type</label>
                                 <select
                                   name="propType"
@@ -246,7 +247,7 @@ const CreateSchema = () => {
                                   <option value="date">date</option>
                                 </select>
                               </div>
-                              <div className="col-md-4">
+                              <div className="col-md-3">
                                 <label className="auth-label" style={{ fontSize: "0.7rem" }}>Format Specifier</label>
                                 <input
                                   type="text"
@@ -257,6 +258,32 @@ const CreateSchema = () => {
                                   className="form-control text-monospace"
                                   style={{ padding: "6px 10px", fontSize: "0.85rem" }}
                                 />
+                              </div>
+                              <div className="col-md-2 d-flex flex-column justify-content-end">
+                                <label
+                                  className="auth-label"
+                                  style={{ fontSize: "0.7rem", marginBottom: "4px" }}
+                                  title="When checked, this field will be auto-incremented (e.g. 000001, 000002) on every credential issuance to guarantee uniqueness across all holders."
+                                >
+                                  Auto-ID 🔢
+                                </label>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", height: "34px" }}>
+                                  <input
+                                    type="checkbox"
+                                    name="isUniqueId"
+                                    checked={!!value.isUniqueId}
+                                    onChange={(e) => onPropertyChange(e, index)}
+                                    style={{
+                                      width: "16px",
+                                      height: "16px",
+                                      accentColor: "var(--accent-cyan)",
+                                      cursor: "pointer",
+                                    }}
+                                  />
+                                  <span style={{ fontSize: "0.7rem", color: value.isUniqueId ? "var(--accent-cyan)" : "var(--text-muted)" }}>
+                                    {value.isUniqueId ? "On" : "Off"}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>

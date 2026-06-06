@@ -145,7 +145,7 @@ const DocSelectScreen = ({ navigation }) => {
           >
             <Avatar source={require('./../../assets/documentIcon.png')} />
             <ListItem.Content>
-              <ListItem.Title style={styles.itemTitle}>{l.type ? l.type[1] || l.type : "Credential"}</ListItem.Title>
+              <ListItem.Title style={styles.itemTitle}>{l.credentialName || l.type || "Credential"}</ListItem.Title>
               <ListItem.Subtitle style={styles.itemSubtitle}>Issued By: {l.issuerName}</ListItem.Subtitle>
               <ListItem.Subtitle style={styles.itemSubtitleDate}>{l.issuanceDate}</ListItem.Subtitle>
             </ListItem.Content>

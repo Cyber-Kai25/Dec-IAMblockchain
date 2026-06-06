@@ -75,6 +75,7 @@ router.post("/create", (req, res) => {
               name: schemaData.name,
               description: schemaData.description,
               did: schemaDid,
+              properties: Array.isArray(schemaData.properties) ? schemaData.properties : [],
             });
             console.log(newSchema);
 
@@ -97,6 +98,29 @@ router.post("/create", (req, res) => {
     });
   request.write(data);
   request.end();
+});
+
+// @route PATCH api/schema/setUniqueId
+// @desc Mark a property on a schema as a unique-ID field so it gets auto-incremented on issuance
+// @access Public (admin only in practice)
+router.patch("/setUniqueId", (req, res) => {
+  const { schemaDid, propertyKey, isUniqueId } = req.body;
+  Schema.findOne({ did: schemaDid })
+    .then((schema) => {
+      if (!schema) {
+        return res.status(404).json({ error: "Schema not found" });
+      }
+      const prop = schema.properties.find((p) => p.key === propertyKey);
+      if (!prop) {
+        return res.status(404).json({ error: `Property '${propertyKey}' not found on schema` });
+      }
+      prop.isUniqueId = !!isUniqueId;
+      schema
+        .save()
+        .then((updated) => res.status(200).json(updated))
+        .catch((err) => res.status(400).json({ error: err }));
+    })
+    .catch((err) => res.status(400).json({ error: err }));
 });
 
 module.exports = router;

@@ -105,6 +105,7 @@ export default function QRScannerScreen({navigation}) {
           },
           body: JSON.stringify({
             userDid: did,
+            walletUserDid: did,
             userId: userId,
             schemaDid: schemaDid
           })
@@ -195,7 +196,8 @@ export default function QRScannerScreen({navigation}) {
       // console.log(data);
       const value = {
         hash: temp.hash,
-        type : temp.type[1],
+        type : temp.type,
+        credentialName: temp.credentialName || (Array.isArray(temp.type) ? temp.type[1] : temp.type) || "Credential",
         issuanceDate: temp.issuanceDate,
         issuerName: temp.issuerName,
       }

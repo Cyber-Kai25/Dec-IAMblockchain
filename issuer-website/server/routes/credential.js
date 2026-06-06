@@ -4,7 +4,6 @@ const http = require("http");
 const objectHash = require("object-hash");
 const secp = require("@noble/secp256k1");
 
-// Load User model
 const Schema = require("../models/SchemaModel");
 const User = require("../models/UserModel");
 
@@ -13,121 +12,197 @@ const LOCAL_IP = process.env.LOCAL_IP;
 const MAIN_BACKEND_PORT = process.env.MAIN_BACKEND_PORT;
 const API_IP = process.env.API_IP;
 
-// @route GET api/credential/create
-// @desc create the cred , call main server and send did to client
-// @access Public
-router.post("/create", (req, res) => {
-  const reqObject = {
-    schemaDid: req.body.schemaDid,
-    userDid: req.body.userDid,
-    studentId: req.body.userId,
-  };
-  Schema.findOne({ did: reqObject.schemaDid })
-    .then((schema) => {
-      if (!schema) {
-        res.status(400).json({ error: "schema doesn't exists" });
-      } else {
-        console.log(reqObject.studentId);
-        User.findOne({ studentId: reqObject.studentId })
-          .then((user) => {
-            if (!user) {
-              res.status(400).json({ error: "user doesn't exists" });
-            } else {
-              User.findOne({ email: "admin@admin.com" })
-                .then(async (admin) => {
-                  if (!admin) {
-                    res.status(400).json({ error: "admin doesn't exists" });
-                  } else {
-                    const credentialSubject = {
-                      id: user.studentId,
-                      emailAddress: user.email,
-                      name: user.name,
-                      collegeName: "ICTU",
-                      universityName: "University Beua",
-                      branch: "ICT",
-                      degree: "Bachelor's",
-                      CPI: "9.0",
-                      birthDate: "01/01/01",
-                      collegeID: user.studentId,
-                      graduationDate: "20/06/2026",
-                      address:
-                        "Yaounde , Messassi Zoatupsi",
-                      guardian: "Parent Name",
-                    };
-                    const hash = objectHash(credentialSubject);
-                    const signHash = await secp.sign(hash, admin.privateKey, {
-                      canonical: true,
-                    });
-                    const sign = secp.Signature.fromDER(signHash);
-                    let verifiableCredential = {
-                      "@context": [
-                        "https://www.w3.org/2018/credentials/v1",
-                        "https://www.w3.org/2018/credentials/examples/v1",
-                      ],
-                      id: reqObject.schemaDid,
-                      type: ["VerifiableCredential", "TranscriptCredential"],
-                      issuerDID: admin.did,
-                      ownerDID: reqObject.userDid,
-                      issuanceDate: new Date().toISOString(),
-                      credentialSubject: credentialSubject,
-                      credentialName: schema.name,
-                      schemaDid: reqObject.schemaDid,
-                      proof: {
-                        type: "RsaSignature2018",
-                        created: new Date().toISOString(),
-                        proofPurpose: "assertionMethod",
-                        verificationMethod: admin.did,
-                        sign: sign.toCompactHex(),
-                        hash: hash,
-                      },
-                    };
-                    const data = JSON.stringify(verifiableCredential);
+// ---------------------------------------------------------------------------
+// Helper: map a known property key to a user's stored field value
+// ---------------------------------------------------------------------------
+const USER_FIELD_MAP = {
+  // Identity fields
+  name: (user) => user.name || "",
+  fullName: (user) => user.name || "",
+  studentName: (user) => user.name || "",
+  holderName: (user) => user.name || "",
+  firstName: (user) => (user.name || "").split(" ")[0] || "",
+  lastName: (user) => (user.name || "").split(" ").slice(1).join(" ") || "",
 
-                    const options = {
-                      hostname: API_IP,
-                      port: MAIN_BACKEND_PORT,
-                      path: "/addCredential",
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        "Content-Length": data.length,
-                      },
-                    };
+  // Contact / account fields
+  email: (user) => user.email || "",
+  emailAddress: (user) => user.email || "",
 
-                    const request = http
-                      .request(options, (response) => {
-                        console.log(`statusCode: ${response.statusCode}`);
+  // ID fields
+  studentId: (user) => user.studentId || "",
+  id: (user) => user.studentId || "",
+  userId: (user) => user.studentId || "",
 
-                        response.on("data", (d) => {
-                          const credentialDid = JSON.parse(d).did;
-                          res
-                            .status(200)
-                            .json({ credentialDid: credentialDid });
-                        });
-                      })
-                      .on("error", (error) => {
-                        console.log(error);
-                      });
-                    request.write(data);
-                    request.end();
-                  }
-                })
-                .catch((err) => {
-                  console.log(err);
-                  res.status(400).json({ error: err });
-                });
+  // DID
+  did: (user) => user.did || "",
+  holderDid: (user) => user.did || "",
+
+  // Organisation
+  orgName: (user) => user.orgName || "",
+  organization: (user) => user.orgName || "",
+  collegeName: (user) => user.orgName || "",
+  universityName: (user) => user.orgName || "",
+
+  // Address
+  address: (user) => user.address || "",
+};
+
+// ---------------------------------------------------------------------------
+// Build a dynamic credentialSubject from schema properties + user data
+// ---------------------------------------------------------------------------
+const buildCredentialSubject = (schemaProperties, user, issuanceCount) => {
+  const subject = {};
+
+  for (const prop of schemaProperties) {
+    const key = prop.key;
+
+    if (prop.isUniqueId) {
+      // Auto-increment: use (issuanceCount + 1) padded to 6 digits
+      subject[key] = String(issuanceCount + 1).padStart(6, "0");
+      continue;
+    }
+
+    // Try to map the property key to a known user field
+    const mapper = USER_FIELD_MAP[key];
+    if (mapper) {
+      subject[key] = mapper(user);
+      continue;
+    }
+
+    // Fallback defaults based on declared type / format
+    if (prop.propType === "date" || prop.propFormat === "date" || prop.propFormat === "date-time") {
+      subject[key] = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    } else if (prop.propType === "number") {
+      subject[key] = 0;
+    } else if (prop.propType === "boolean") {
+      subject[key] = false;
+    } else {
+      subject[key] = ""; // empty string — admin can update later if needed
+    }
+  }
+
+  return subject;
+};
+
+// ---------------------------------------------------------------------------
+// POST /api/credential/create
+// ---------------------------------------------------------------------------
+router.post("/create", async (req, res) => {
+  const { schemaDid, userDid, walletUserDid, userId } = req.body;
+
+  // The wallet sends its own DID as `walletUserDid`.
+  // Fall back to `userDid` for backwards compatibility, then `userId`.
+  const holderDid = walletUserDid || userDid;
+
+  try {
+    // 1. Fetch schema (includes stored properties)
+    const schema = await Schema.findOne({ did: schemaDid });
+    if (!schema) {
+      return res.status(400).json({ error: "Schema doesn't exist" });
+    }
+
+    // 2. Resolve the wallet holder — prefer lookup by DID, fall back to studentId
+    let user = null;
+    if (holderDid) {
+      user = await User.findOne({ did: holderDid });
+    }
+    if (!user && userId) {
+      user = await User.findOne({ studentId: userId });
+    }
+    if (!user) {
+      return res.status(400).json({ error: "User doesn't exist. Register on the issuer website first." });
+    }
+
+    // 3. Fetch admin (issuer)
+    const admin = await User.findOne({ email: "admin@admin.com" });
+    if (!admin) {
+      return res.status(400).json({ error: "Admin account not found" });
+    }
+
+    // 4. Build the dynamic credentialSubject from schema properties
+    const credentialSubject = buildCredentialSubject(
+      schema.properties,
+      user,
+      schema.issuanceCount
+    );
+
+    // 5. Sign the credentialSubject
+    const hash = objectHash(credentialSubject);
+    const signHash = await secp.sign(hash, admin.privateKey, { canonical: true });
+    const sign = secp.Signature.fromDER(signHash);
+
+    // 6. Assemble the Verifiable Credential
+    const verifiableCredential = {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://www.w3.org/2018/credentials/examples/v1",
+      ],
+      id: schemaDid,
+      type: ["VerifiableCredential", `${schema.name.replace(/\s+/g, "")}Credential`],
+      issuerDID: admin.did,
+      ownerDID: userDid,
+      issuanceDate: new Date().toISOString(),
+      credentialSubject,
+      credentialName: schema.name,
+      schemaDid,
+      proof: {
+        type: "EcdsaSecp256k1Signature2019",
+        created: new Date().toISOString(),
+        proofPurpose: "assertionMethod",
+        verificationMethod: admin.did,
+        sign: sign.toCompactHex(),
+        hash,
+      },
+    };
+
+    // 7. Send to main API / blockchain
+    const data = JSON.stringify(verifiableCredential);
+    const options = {
+      hostname: API_IP,
+      port: MAIN_BACKEND_PORT,
+      path: "/addCredential",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(data),
+      },
+    };
+
+    const request = http
+      .request(options, (response) => {
+        let rawData = "";
+        response.on("data", (chunk) => { rawData += chunk; });
+        response.on("end", async () => {
+          try {
+            const parsed = JSON.parse(rawData);
+            if (response.statusCode !== 200) {
+              return res.status(response.statusCode).json(parsed);
             }
-          })
-          .catch((err) => {
-            console.log(err);
-            res.status(400).json({ error: err });
-          });
-      }
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(400).json({ error: err });
-    });
+
+            // 8. Increment issuanceCount AFTER successful blockchain registration
+            await Schema.updateOne(
+              { did: schemaDid },
+              { $inc: { issuanceCount: 1 } }
+            );
+
+            res.status(200).json({ credentialDid: parsed.did });
+          } catch (parseErr) {
+            console.error("Error parsing API response:", parseErr);
+            res.status(500).json({ error: "Unexpected response from credential API" });
+          }
+        });
+      })
+      .on("error", (error) => {
+        console.error("HTTP request error:", error);
+        res.status(500).json({ error: error.message });
+      });
+
+    request.write(data);
+    request.end();
+  } catch (err) {
+    console.error("Credential creation error:", err);
+    res.status(500).json({ error: err.message || err });
+  }
 });
 
 module.exports = router;
