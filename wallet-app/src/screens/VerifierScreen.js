@@ -173,7 +173,7 @@ const VerifierScreen = ({ navigation }) => {
       <Dialog.Container visible={visible} onBackdropPress={handleCancel}>
         <Dialog.Title>Revoke Access</Dialog.Title>
         <Dialog.Description>
-          Credential {currentCredential.Type ? currentCredential.Type[1] || currentCredential.Type : ""} is shared with {currentCredential.RecieverName}.
+          Credential {currentCredential.Type ? (Array.isArray(currentCredential.Type) ? currentCredential.Type[1] || currentCredential.Type[0] : currentCredential.Type) : "Credential"} is shared with {currentCredential.RecieverName}.
           {"\n\n"}
           Do you want to revoke access to this credential?
         </Dialog.Description>
@@ -197,7 +197,7 @@ const VerifierScreen = ({ navigation }) => {
             <Avatar source={require('./../../assets/documentIcon.png')} />
             <ListItem.Content>
               <ListItem.Title style={styles.itemTitle}>
-                Type: {item.Type ? item.Type[1] || item.Type : "Credential"}
+                Type: {item.Type ? (Array.isArray(item.Type) ? item.Type[1] || item.Type[0] : item.Type) : "Credential"}
               </ListItem.Title>
               <ListItem.Subtitle style={styles.itemSubtitle}>Receiver: {item.RecieverName}</ListItem.Subtitle>
               <ListItem.Subtitle style={styles.itemSubtitleStatus}>

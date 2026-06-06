@@ -107,7 +107,8 @@ export default function QRScannerScreen({navigation}) {
             userDid: did,
             walletUserDid: did,
             userId: userId,
-            schemaDid: schemaDid
+            schemaDid: schemaDid,
+            customValues: QRData.customValues || {}
           })
         });
 

@@ -32,6 +32,7 @@ const Verification = () => {
                 url: `http://${LOCAL_IP}:${BACKEND_PORT}/api/credential/send`,
                 userId: response.data.studentId,
                 receiverDid: res.data.did,
+                receiverName: res.data.orgName || "Authorized Institution",
               })
             );
             axios

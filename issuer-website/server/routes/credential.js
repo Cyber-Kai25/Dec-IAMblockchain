@@ -50,11 +50,16 @@ const USER_FIELD_MAP = {
 // ---------------------------------------------------------------------------
 // Build a dynamic credentialSubject from schema properties + user data
 // ---------------------------------------------------------------------------
-const buildCredentialSubject = (schemaProperties, user, issuanceCount) => {
+const buildCredentialSubject = (schemaProperties, user, issuanceCount, customValues = {}) => {
   const subject = {};
 
   for (const prop of schemaProperties) {
     const key = prop.key;
+
+    if (customValues && customValues[key] !== undefined) {
+      subject[key] = customValues[key];
+      continue;
+    }
 
     if (prop.isUniqueId) {
       // Auto-increment: use (issuanceCount + 1) padded to 6 digits
@@ -88,7 +93,7 @@ const buildCredentialSubject = (schemaProperties, user, issuanceCount) => {
 // POST /api/credential/create
 // ---------------------------------------------------------------------------
 router.post("/create", async (req, res) => {
-  const { schemaDid, userDid, walletUserDid, userId } = req.body;
+  const { schemaDid, userDid, walletUserDid, userId, customValues } = req.body;
 
   // The wallet sends its own DID as `walletUserDid`.
   // Fall back to `userDid` for backwards compatibility, then `userId`.
@@ -123,7 +128,8 @@ router.post("/create", async (req, res) => {
     const credentialSubject = buildCredentialSubject(
       schema.properties,
       user,
-      schema.issuanceCount
+      schema.issuanceCount,
+      customValues
     );
 
     // 5. Sign the credentialSubject

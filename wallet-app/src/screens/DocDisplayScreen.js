@@ -42,7 +42,7 @@ const DocDisplayScreen = ({ navigation }) => {
               {/* Type/Title */}
               <View style={styles.headerInfo}>
                 <Text style={styles.titleLabel}>Credential Class</Text>
-                <Text style={styles.titleText}>{data.type ? data.type[1] : "Credential"}</Text>
+                <Text style={styles.titleText}>{data.type ? (Array.isArray(data.type) ? data.type[1] || data.type[0] : data.type) : "Credential"}</Text>
               </View>
 
               {/* Issuer Name */}

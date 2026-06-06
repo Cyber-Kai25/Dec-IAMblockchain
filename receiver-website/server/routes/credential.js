@@ -20,7 +20,7 @@ const MAIN_BACKEND_PORT = process.env.MAIN_BACKEND_PORT;
 //Utility function
 const getCredentialData = async (credential, adminDid, hash, sign) => {
   return new Promise(async (resolve, reject) => {
-    requestData = {
+    const requestData = {
       credDID: credential.credDid,
       did: adminDid,
       hash: hash,
@@ -38,8 +38,13 @@ const getCredentialData = async (credential, adminDid, hash, sign) => {
 
     const request = http.request(options, (response) => {
       console.log(`statusCode: ${response.statusCode}`);
+      let rawData = "";
 
-      response.on("data", (d) => {
+      response.on("data", (chunk) => {
+        rawData += chunk;
+      });
+
+      response.on("end", () => {
         if (response.statusCode === 500) {
           console.log(credential);
           resolve({
@@ -48,20 +53,35 @@ const getCredentialData = async (credential, adminDid, hash, sign) => {
             date: credential.date,
             msg: "Access to this Document has been revoked",
           });
+          return;
         }
         try {
-          let credData = JSON.parse(d);
-          credData = credData.credentialSubject;
-          credData.date = credential.date;
-          resolve(credData);
+          let credData = JSON.parse(rawData);
+          const credSubject = credData.credentialSubject || {};
+          credSubject.name = credential.name;
+          credSubject.id = credential.studentId;
+          credSubject.date = credential.date;
+          resolve(credSubject);
         } catch (err) {
-          reject(err);
+          console.error("Error parsing getCredential response in getCredentialData:", err);
+          resolve({
+            name: credential.name,
+            id: credential.studentId,
+            date: credential.date,
+            msg: "Failed to parse credential data",
+          });
         }
       });
     });
 
     request.on("error", (error) => {
-      reject(error);
+      console.error("HTTP request error in getCredentialData:", error);
+      resolve({
+        name: credential.name,
+        id: credential.studentId,
+        date: credential.date,
+        msg: "Connection error to main API",
+      });
     });
 
     request.end();
@@ -76,6 +96,17 @@ router.get("/getAll", async (req, res) => {
     .then(async (adminData) => {
       Credential.find({})
         .then(async (credentials) => {
+          if (!adminData || adminData.length === 0 || !adminData[0].privateKey) {
+            // Receiver DID not configured
+            const result = credentials.map(c => ({
+              name: c.name,
+              id: c.studentId,
+              date: c.date,
+              msg: "Receiver DID not configured"
+            }));
+            return res.status(200).json({ credentials: result });
+          }
+
           const hash = sha256("userDid").toString();
           const signHash = await secp.sign(hash, adminData[0].privateKey, {
             canonical: true,
@@ -114,63 +145,74 @@ router.get("/getByUser/:email", async (req, res) => {
   const userEmail = req.params.email;
   User.findOne({ email: userEmail })
     .then(async (userData) => {
-      const studentId = userData.studentId;
-      if (userData) {
-        User.find({ email: "admin@admin.com" })
-          .then(async (adminData) => {
-            Credential.find({ studentId: studentId })
-              .then(async (credentials) => {
-                const hash = sha256("userDid").toString();
-                const signHash = await secp.sign(
-                  hash,
-                  adminData[0].privateKey,
-                  {
-                    canonical: true,
-                  }
-                );
-                let sign = secp.Signature.fromDER(signHash);
-                sign = sign.toCompactHex();
-
-                let credCount = credentials.length;
-                let credPromises = [];
-
-                for (let i = 0; i < credCount; i++) {
-                  credPromises.push(
-                    getCredentialData(
-                      credentials[i],
-                      adminData[0].did,
-                      hash,
-                      sign
-                    )
-                  );
-                }
-                Promise.all(credPromises).then((result) => {
-                  const filteredCreds = [];
-                  for (let i = 0; i < result.length; i++) {
-                    filteredCreds.push({
-                      credName: credentials[i].credName,
-                      studentId: credentials[i].studentId,
-                      date: credentials[i].date,
-                      credAccess:
-                        result[i].msg !==
-                        "Access to this Document has been revoked",
-                    });
-                  }
-                  res.status(200).json({ creds: filteredCreds });
-                });
-              })
-              .catch((err) => {
-                console.log(err);
-                res.status(500).json({ error: err });
-              });
-          })
-          .catch((err) => {
-            console.log(err);
-            res.status(500).json({ error: err });
-          });
-      } else {
-        res.status(400).json({ msg: "user with that email doesn't exists" });
+      if (!userData) {
+        return res.status(400).json({ msg: "user with that email doesn't exists" });
       }
+      const studentId = userData.studentId;
+      User.find({ email: "admin@admin.com" })
+        .then(async (adminData) => {
+          Credential.find({ studentId: studentId })
+            .then(async (credentials) => {
+              if (!adminData || adminData.length === 0 || !adminData[0].privateKey) {
+                // Receiver DID not configured
+                const filteredCreds = credentials.map(c => ({
+                  credName: c.credName || "NA",
+                  studentId: c.studentId,
+                  date: c.date,
+                  credAccess: true, // Default to true so it shows as active since it is stored locally
+                  msg: "Receiver DID not configured"
+                }));
+                return res.status(200).json({ creds: filteredCreds });
+              }
+
+              const hash = sha256("userDid").toString();
+              const signHash = await secp.sign(
+                hash,
+                adminData[0].privateKey,
+                {
+                  canonical: true,
+                }
+              );
+              let sign = secp.Signature.fromDER(signHash);
+              sign = sign.toCompactHex();
+
+              let credCount = credentials.length;
+              let credPromises = [];
+
+              for (let i = 0; i < credCount; i++) {
+                credPromises.push(
+                  getCredentialData(
+                    credentials[i],
+                    adminData[0].did,
+                    hash,
+                    sign
+                  )
+                );
+              }
+              Promise.all(credPromises).then((result) => {
+                const filteredCreds = [];
+                for (let i = 0; i < result.length; i++) {
+                  filteredCreds.push({
+                    credName: credentials[i].credName,
+                    studentId: credentials[i].studentId,
+                    date: credentials[i].date,
+                    credAccess:
+                      result[i].msg !==
+                      "Access to this Document has been revoked",
+                  });
+                }
+                res.status(200).json({ creds: filteredCreds });
+              });
+            })
+            .catch((err) => {
+              console.log(err);
+              res.status(500).json({ error: err });
+            });
+        })
+        .catch((err) => {
+          console.log(err);
+          res.status(500).json({ error: err });
+        });
     })
     .catch((err) => {
       console.log(err);
@@ -193,7 +235,7 @@ router.post("/send", (req, res) => {
   User.findOne({ studentId: reqData.studentId })
     .then((user) => {
       if (!user) {
-        res.status(400).json({ error: "couldn't find a user with that ID" });
+        return res.status(400).json({ error: "couldn't find a user with that ID" });
       }
       requestData = {
         credDID: reqData.credDid,
@@ -211,77 +253,89 @@ router.post("/send", (req, res) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Content-Length": data.length,
+          "Content-Length": Buffer.byteLength(data),
         },
       };
 
       const request = http
         .request(options, (response) => {
-          response.on("data", (d) => {
-            const credData = JSON.parse(d);
-            console.log(credData);
-            Credential.findOne({
-              studentId: reqData.studentId,
-              credDid: reqData.credDid,
-            })
-              .then((cred) => {
-                let currentdate = new Date();
-                let datetime =
-                  currentdate.getDate() +
-                  "/" +
-                  (currentdate.getMonth() + 1) +
-                  " " +
-                  currentdate.getHours() +
-                  ":" +
-                  currentdate.getMinutes();
-                if (cred === null) {
-                  console.log("credData:", credData);
-                  newCred = new Credential({
-                    studentId: reqData.studentId,
-                    name: user.name,
-                    credName: credData.credentialName,
-                    userEmail: user.email,
-                    credDid: reqData.credDid,
-                    date: datetime,
-                    hash: reqData.hash,
-                    sign: reqData.sign,
-                  });
-                  console.log("newCred:", newCred);
-                  newCred
-                    .save()
-                    .then((data) => {
-                      console.log(data);
-                      emitter.emit("receive" + user.email, data);
-                      res.status(200).json({ msg: "credentials received" });
-                    })
-                    .catch((err) => {
-                      console.log(err);
-                      res.status(400).json({
-                        error: "Error in updating the Credential DB",
-                      });
-                    });
-                } else {
-                  cred.date = datetime;
-                  console.log("cred", cred);
-                  cred
-                    .save()
-                    .then((data) => {
-                      console.log(data);
-                      emitter.emit("update" + user.email, data);
-                      res.status(200).json({ msg: "credentials received" });
-                    })
-                    .catch((err) => {
-                      console.log(err);
-                      res.status(400).json({
-                        error: "Error in updating the Credential DB",
-                      });
-                    });
-                }
+          let rawData = "";
+          response.on("data", (chunk) => {
+            rawData += chunk;
+          });
+          response.on("end", () => {
+            try {
+              const credData = JSON.parse(rawData);
+              console.log("getCredential response in /send:", credData);
+              if (response.statusCode !== 200) {
+                console.error("Failed to verify on-chain:", credData);
+                return res.status(response.statusCode).json({ error: credData.error || credData.mssg || "Blockchain verification failed" });
+              }
+
+              Credential.findOne({
+                studentId: reqData.studentId,
+                credDid: reqData.credDid,
               })
-              .catch((error) => {
-                console.log(error);
-                res.status(500).json({ error: error });
-              });
+                .then((cred) => {
+                  let currentdate = new Date();
+                  let datetime =
+                    currentdate.getDate() +
+                    "/" +
+                    (currentdate.getMonth() + 1) +
+                    " " +
+                    currentdate.getHours() +
+                    ":" +
+                    currentdate.getMinutes();
+                  if (cred === null) {
+                    newCred = new Credential({
+                      studentId: reqData.studentId,
+                      name: user.name,
+                      credName: credData.credentialName || "NA",
+                      userEmail: user.email,
+                      credDid: reqData.credDid,
+                      date: datetime,
+                      hash: reqData.hash,
+                      sign: reqData.sign,
+                    });
+                    newCred
+                      .save()
+                      .then((data) => {
+                        console.log("newCred saved:", data);
+                        emitter.emit("receive" + user.email, data);
+                        res.status(200).json({ msg: "credentials received" });
+                      })
+                      .catch((err) => {
+                        console.log("Database save error:", err);
+                        res.status(400).json({
+                          error: "Error in updating the Credential DB",
+                        });
+                      });
+                  } else {
+                    cred.date = datetime;
+                    cred.credName = credData.credentialName || cred.credName;
+                    cred
+                      .save()
+                      .then((data) => {
+                        console.log("cred updated:", data);
+                        emitter.emit("update" + user.email, data);
+                        res.status(200).json({ msg: "credentials received" });
+                      })
+                      .catch((err) => {
+                        console.log("Database update error:", err);
+                        res.status(400).json({
+                          error: "Error in updating the Credential DB",
+                        });
+                      });
+                  }
+                })
+                .catch((error) => {
+                  console.log(error);
+                  res.status(500).json({ error: error });
+                });
+            } catch (err) {
+              console.error("Error parsing response in /send:", err);
+              res.status(500).json({ error: "Failed to parse verified credential data from blockchain" });
+            }
           });
         })
         .on("error", (error) => {

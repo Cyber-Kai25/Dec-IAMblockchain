@@ -16,15 +16,13 @@ const API_IP = process.env.API_IP;
 router.get("/getAll", (req, res) => {
   Schema.find()
     .then((allSchemas) => {
-      for (ind = 0; ind < allSchemas.length; ind++) {
-        let newSchema = {
-          name: allSchemas[ind].name,
-          description: allSchemas[ind].description,
-          did: allSchemas[ind].did,
-        };
-        allSchemas[ind] = newSchema;
-      }
-      res.status(200).json({ schemas: allSchemas });
+      const schemasList = allSchemas.map((s) => ({
+        name: s.name,
+        description: s.description,
+        did: s.did,
+        properties: s.properties || [],
+      }));
+      res.status(200).json({ schemas: schemasList });
     })
     .catch((err) => {
       console.log(err);

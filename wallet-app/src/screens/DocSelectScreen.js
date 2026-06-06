@@ -71,7 +71,7 @@ const DocSelectScreen = ({ navigation }) => {
           Type: credential.type,
           CredentialDID: credential.hash,
           Access: true,
-          RecieverName: credential.issuerName,
+          RecieverName: QRData.receiverName || credential.issuerName || "Authorized Institution",
         };
 
         if (history) {
@@ -100,15 +100,26 @@ const DocSelectScreen = ({ navigation }) => {
     navigation.navigate("Verifier");
   };
 
+  const getTypeName = (type) => {
+    if (Array.isArray(type)) {
+      return type[1] || type[0] || "Credential";
+    }
+    return type || "Credential";
+  };
+
   const checkCredential = async (value, curr_credentials) => {
     if (curr_credentials) {
       for (var i = 0; i < curr_credentials.shareHistory.length; ++i) {
-        if (curr_credentials.shareHistory[i].Reciever === value.Reciever && curr_credentials.shareHistory[i].Type === value.Type && curr_credentials.shareHistory[i].Access) {
-          alert(`Credential ${value.Type} is already shared with ${value.RecieverName}`);
+        const item = curr_credentials.shareHistory[i];
+        const sameReciever = item.Reciever === value.Reciever;
+        const sameType = getTypeName(item.Type) === getTypeName(value.Type);
+
+        if (sameReciever && sameType && item.Access) {
+          alert(`Credential ${getTypeName(value.Type)} is already shared with ${value.RecieverName}`);
           return false;
         }
-        if (curr_credentials.shareHistory[i].Reciever === value.Reciever && curr_credentials.shareHistory[i].Type === value.Type && !curr_credentials.shareHistory[i].Access) {
-          curr_credentials.shareHistory[i].Access = true;
+        if (sameReciever && sameType && !item.Access) {
+          item.Access = true;
           const jsonValue = JSON.stringify(curr_credentials);
           await AsyncStorage.setItem('ShareHistory', jsonValue);
           return false;
