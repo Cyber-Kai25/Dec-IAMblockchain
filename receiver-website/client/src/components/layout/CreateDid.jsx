@@ -46,6 +46,22 @@ const CreateSchema = () => {
   const onChange = (e) => {
     const { name, value } = e.target;
     setInput((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "privateKey") {
+      const hexRegex = /^(0x)?[0-9a-fA-F]{64}$/;
+      if (hexRegex.test(value)) {
+        axios
+          .post(`http://${LOCAL_IP}:${BACKEND_PORT}/api/did/derivePublicKey`, { privateKey: value })
+          .then((res) => {
+            if (res.data && res.data.publicKey) {
+              setInput((prev) => ({ ...prev, publicKey: res.data.publicKey }));
+            }
+          })
+          .catch((err) => {
+            console.error("Error deriving public key:", err);
+          });
+      }
+    }
   };
 
   const onSubmit = (e) => {

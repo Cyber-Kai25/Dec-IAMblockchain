@@ -5,6 +5,24 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const keys = require("../config/keys");
+const secp = require("@noble/secp256k1");
+
+router.post("/derivePublicKey", (req, res) => {
+  try {
+    let privateKey = req.body.privateKey;
+    if (!privateKey) {
+      return res.status(400).json({ error: "Private key is required" });
+    }
+    if (privateKey.startsWith("0x")) {
+      privateKey = privateKey.substring(2);
+    }
+    const publicKeyBytes = secp.getPublicKey(privateKey);
+    const publicKeyHex = secp.utils.bytesToHex(publicKeyBytes);
+    return res.status(200).json({ publicKey: publicKeyHex });
+  } catch (error) {
+    return res.status(400).json({ error: "Invalid private key format" });
+  }
+});
 
 require("dotenv").config();
 const LOCAL_IP = process.env.LOCAL_IP;

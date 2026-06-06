@@ -360,7 +360,7 @@ const HomeScreen = ({navigation}) => {
 
   // console.log(props)
   return (
-    <ScrollView> 
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}> 
 
       <Dialog.Container visible={visibleExportDialog} onBackdropPress={handleExportDialogCancel}>
             <Dialog.Title>Export Data</Dialog.Title>
@@ -449,20 +449,20 @@ const HomeScreen = ({navigation}) => {
         // title="Create DID"
         // onPress={()=> {createDid()}}
         // />
-        <View>
+        <View style={{ marginTop: 8 }}>
         <Card style={styles.cardStyle} onPress={()=> {handleCreateDid()}}>
         <Card.Cover style={styles.imageStyle}  source={require('./../../assets/cards/didIssue.png') } />
-        <Card.Content>
-          <Title>Get Did</Title>
-          <Paragraph>Issue a did and did document for youself which will help you identity yourself to others</Paragraph>
+        <Card.Content style={styles.cardContent}>
+          <Title style={styles.cardTitle}>Get Did</Title>
+          <Paragraph style={styles.cardParagraph}>Issue a did and did document for yourself which will help you identify yourself to others</Paragraph>
         </Card.Content>
       </Card>
 
       <Card style={styles.cardStyle} onPress={()=> {toggleRestoreBackup()}}>
         <Card.Cover style={styles.imageStyle}  source={require('./../../assets/cards/backup.png') } />
-        <Card.Content>
-          <Title>Restore Account</Title>
-          <Paragraph>Restore the previously backed up data including did and credentials on your phone</Paragraph>
+        <Card.Content style={styles.cardContent}>
+          <Title style={styles.cardTitle}>Restore Account</Title>
+          <Paragraph style={styles.cardParagraph}>Restore the previously backed up data including did and credentials on your phone</Paragraph>
         </Card.Content>
       </Card>
       </View>
@@ -473,12 +473,12 @@ const HomeScreen = ({navigation}) => {
       // title="View DID Document"
       // onPress={()=> {getDidDocument()}}
       // />
-      <View>
+      <View style={{ marginTop: 8 }}>
       <Card style={styles.cardStyle} onPress={()=> {getDidDocument()}}>
         <Card.Cover style={styles.imageStyle}  source={require('./../../assets/cards/did.png') } />
-        <Card.Content>
-          <Title>View Did Document</Title>
-          <Paragraph>A set of data that describes a Decentralized Identifier i.e. you</Paragraph>
+        <Card.Content style={styles.cardContent}>
+          <Title style={styles.cardTitle}>View Did Document</Title>
+          <Paragraph style={styles.cardParagraph}>A set of data that describes a Decentralized Identifier i.e. you</Paragraph>
         </Card.Content>
       </Card>
       
@@ -489,9 +489,9 @@ const HomeScreen = ({navigation}) => {
       /> */}
         <Card style={styles.cardStyle} onPress={()=> {navigation.navigate("Issuer")}} mode='outlined'>
           <Card.Cover style={styles.imageStyle}  source={require('./../../assets/cards/issuer.png') } />
-          <Card.Content>
-            <Title>Get Credential</Title>
-            <Paragraph>Get credentials from Issuer by scanning the QR code from the Isser's website</Paragraph>
+          <Card.Content style={styles.cardContent}>
+            <Title style={styles.cardTitle}>Get Credential</Title>
+            <Paragraph style={styles.cardParagraph}>Get credentials from Issuer by scanning the QR code from the Issuer's website</Paragraph>
           </Card.Content>
         </Card>
         {/* <Button 
@@ -500,43 +500,92 @@ const HomeScreen = ({navigation}) => {
         /> */}
         <Card style={styles.cardStyle} onPress={()=> {navigation.navigate("Verifier")}}>
           <Card.Cover style={styles.imageStyle}  source={require('./../../assets/cards/verifier.png') } />
-          <Card.Content>
-            <Title>Send Credential</Title>
-            <Paragraph>Send credetial to the verifier by scanning the QR code present on the Verifier website and selecting the credential you want to share</Paragraph>
+          <Card.Content style={styles.cardContent}>
+            <Title style={styles.cardTitle}>Send Credential</Title>
+            <Paragraph style={styles.cardParagraph}>Send credential to the verifier by scanning the QR code present on the Verifier website and selecting the credential you want to share</Paragraph>
           </Card.Content>
         </Card>
 
         <Card style={styles.cardStyle} onPress={()=> {handleExport()}}>
         <Card.Cover style={styles.imageStyle}  source={require('./../../assets/cards/backup.png') } />
-        <Card.Content>
-          <Title>Export Data</Title>
-          <Paragraph>Export the latest copy your password encrypted data onto the blockchain so that you can restore the data in a new device</Paragraph>
+        <Card.Content style={styles.cardContent}>
+          <Title style={styles.cardTitle}>Export Data</Title>
+          <Paragraph style={styles.cardParagraph}>Export the latest copy of your password encrypted data onto the blockchain so that you can restore the data in a new device</Paragraph>
         </Card.Content>
         </Card>
       </View>
       : null
     }
-      <Button 
-      title="Clear Data"
-      onPress={()=> {AsyncStorage.clear()}}
-      />
+      <TouchableOpacity 
+        style={styles.clearButton} 
+        onPress={() => {
+          Alert.alert(
+            "Clear Data",
+            "Are you sure you want to delete all local wallet identity keys and credentials?",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Yes, Reset", style: "destructive", onPress: () => { AsyncStorage.clear(); Alert.alert("Wallet cleared."); } }
+            ]
+          );
+        }}
+      >
+        <Text style={styles.clearButtonText}>Clear Wallet Data</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  text: {
-    fontSize: 30,
+  container: {
+    flex: 1,
+    backgroundColor: '#050d1a',
   },
-  cardStyle:{
-    margin: 10,
-    borderColor: 'black',
-    borderWidth: 1.5,
+  cardStyle: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#0a1628',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 255, 0.12)',
+    overflow: 'hidden',
+    elevation: 3,
   },
-  imageStyle:{
-    width: null,
-    resizeMode: 'contain',
-    height: 150
+  cardContent: {
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  cardTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  cardParagraph: {
+    color: '#94a3b8',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  imageStyle: {
+    height: 140,
+    backgroundColor: 'rgba(0, 212, 255, 0.02)',
+    resizeMode: 'cover',
+  },
+  clearButton: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 32,
+    padding: 14,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   }
 });
 

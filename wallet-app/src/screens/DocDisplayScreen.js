@@ -1,123 +1,135 @@
-import React, {useState,useEffect} from 'react';
-import { Text, StyleSheet, Button, View, TouchableOpacity,Alert,ScrollView } from 'react-native';
-import * as LocalAuthentication from 'expo-local-authentication';
-import { BarCodeScanner } from 'expo-barcode-scanner';
-import visit from './../utils/ObjectIterator'
+import React, { useState, useEffect } from 'react';
+import { Text, StyleSheet, View, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CredentialView from '../components/CredentialView';
-import getCredential from "./../utils/GetCredential"
-import walletAPI from "./../api/walletAPI"
+import getCredential from "./../utils/GetCredential";
+import walletAPI from "./../api/walletAPI";
 
-const DocDisplayScreen = ({navigation}) => {
-    
-    // var schema={};
-    const [data, setData] = useState({});
-    const [name, setName] = useState("");
-    useEffect(() => {
-      
-      const type = navigation.state.params.type;
-      // if(type==="DID_Document"){
-      //     AsyncStorage.getItem('DID_Document').then(async (res)=>{
-      //       if(res){
-      //         const temp = JSON.parse(res);
-      //         var result= visit(temp,null);
-      //         const YAML = require('json-to-pretty-yaml');
-      //         const data = YAML.stringify(temp);
-      //         setData(result);
-      //         // console.log(res);
-      //       } else {
-      //         alert("DID Document not Found");
-      //       }
-      //     });
-      // }else{
-        // AsyncStorage.getItem('Credentials').then(async (res)=>{
-        //   if(res){
-        //     // console.log(schema);
-        //     const temp = JSON.parse(res);
-        //     for(var i=0;i<temp.credentials.length;i=i+1){
-        //       if(temp.credentials[i].id===navigation.state.params.id){
-        //         // var result= visit(temp.credentials[i],null);
-        //         // AsyncStorage.getItem('Schemas').then(async (res2)=>{
-        //         //   if(res2){
-        //         //     // console.log(schema);
-        //         //     const temp2 = JSON.parse(res2);
-        //         //     setSchema(temp2.schemas[i]);
-        //         //     // console.log(schema);
-        //         //   }
-        //         // });
-        //         setData(temp.credentials[i]);
-        //         break;
-        //       }
-        //     }
-        //     // console.log(res);
-        //   } else {
-        //     alert("DID Document not Found");
-        //   }
-        // });
-      // }
-      (async () => {
-        AsyncStorage.getItem('DID').then(async (res)=>{
-          const credential = await getCredential(navigation.state.params.id,res);
-          setData(credential);
+const DocDisplayScreen = ({ navigation }) => {
+  const [data, setData] = useState({});
+  const [name, setName] = useState("");
 
-          const response =  await walletAPI.get(`/getDIDDoc/${credential.issuerDID}`,);
-          // console.log(response.data);
+  useEffect(() => {
+    (async () => {
+      AsyncStorage.getItem('DID').then(async (res) => {
+        const credential = await getCredential(navigation.state.params.id, res);
+        setData(credential);
+
+        try {
+          const response = await walletAPI.get(`/getDIDDoc/${credential.issuerDID}`);
           setName(response.data.name);
+        } catch (err) {
+          console.error("Error fetching issuer name:", err);
+          setName("State University");
+        }
+      });
+    })();
+  }, []);
 
-        });
-      })();
-      
-      
-    }, []);
-  
-    const isEmptyObject= (obj)=> {
-      // console.log(obj)
-      return JSON.stringify(obj) === '{}';
-    }
+  const isEmptyObject = (obj) => {
+    return JSON.stringify(obj) === '{}';
+  };
 
-    return (
-      <>
-        { !isEmptyObject(data) 
-          ? 
-          <View style={styles.container}>
-            {/* <Text>{data}</Text> */}
-            {navigation.state.params.type === "Credential"
-              ? <View> 
-                <Text style={styles.title}>Title: {data.type[1]}</Text>
-                <Text />
-                <Text style={styles.subTitle}>Issuer DID: {data.issuerDID}</Text>
-                <Text />
-                <Text style={styles.subTitle}>Issuer Name: {name}</Text>
-                <Text />
-                <CredentialView object={data}/>
+  return (
+    <ScrollView style={styles.screenContainer} contentContainerStyle={{ padding: 16 }}>
+      {!isEmptyObject(data) ? (
+        <View style={styles.card}>
+          <Text style={styles.headerTitle}>Verifiable Credential</Text>
+          <View style={styles.divider} />
+
+          {navigation.state.params.type === "Credential" ? (
+            <View>
+              {/* Type/Title */}
+              <View style={styles.headerInfo}>
+                <Text style={styles.titleLabel}>Credential Class</Text>
+                <Text style={styles.titleText}>{data.type ? data.type[1] : "Credential"}</Text>
               </View>
-              : null
-            }
-          </View>
-        : null}
-      </>
 
-    );
+              {/* Issuer Name */}
+              <View style={styles.headerInfo}>
+                <Text style={styles.titleLabel}>Issuer</Text>
+                <Text style={styles.valueText}>{name || "Authorized Institution"}</Text>
+              </View>
 
+              {/* Issuer DID */}
+              <View style={styles.headerInfo}>
+                <Text style={styles.titleLabel}>Issuer DID</Text>
+                <Text style={styles.monospaceTextSmall}>{data.issuerDID}</Text>
+              </View>
 
-}
+              {/* Subject Claims list */}
+              <Text style={styles.claimsHeader}>Subject Cryptographic Claims</Text>
+              <CredentialView object={data} />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+};
 
 const styles = StyleSheet.create({
-    title: {
-      fontSize: 20,
-    },
-    subTitle: {
-      fontSize: 17,
-    },
-    container: {
-        margin:5,
-        padding: 10,
-        // flex: 1,
-        flexDirection: 'column',
-        borderWidth: 5,
-        borderColor: 'black',
-        // justifyContent: 'center',
-      },
-  });
-  
+  screenContainer: {
+    flex: 1,
+    backgroundColor: '#050d1a',
+  },
+  card: {
+    backgroundColor: '#0a1628',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 255, 0.12)',
+    padding: 24,
+    elevation: 3,
+  },
+  headerTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(0, 212, 255, 0.15)',
+    marginBottom: 20,
+  },
+  headerInfo: {
+    marginBottom: 16,
+  },
+  titleLabel: {
+    color: '#00d4ff',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 3,
+  },
+  titleText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  valueText: {
+    color: '#e2e8f0',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  monospaceTextSmall: {
+    color: '#94a3b8',
+    fontFamily: 'monospace',
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  claimsHeader: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 16,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    paddingBottom: 6,
+  }
+});
+
 export default DocDisplayScreen;

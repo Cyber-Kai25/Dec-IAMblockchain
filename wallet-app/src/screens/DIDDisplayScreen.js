@@ -1,100 +1,141 @@
-import React, {useState,useEffect} from 'react';
-import { Text, StyleSheet, Button, View, TouchableOpacity,Alert,FlatList } from 'react-native';
-import visit from '../utils/ObjectIterator'
+import React, { useState, useEffect } from 'react';
+import { Text, StyleSheet, View, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as schema from '../utils/TransriptSchema.json';
-import CredentialView from '../components/CredentialView';
 
-const DIDDisplayScreen = ({navigation}) => {
-    
-    const [data, setData] = useState({});
-    const [name, setName] = useState("");
-    useEffect(() => {
-      
-      const type = navigation.state.params.type;
-      if(type==="DID_Document"){
-          AsyncStorage.getItem('DID_Document').then(async (res)=>{
-            if(res){
-              const temp = JSON.parse(res);
-              setName(await AsyncStorage.getItem('Name'));
-              // var result= visit(temp,null);
-              // const YAML = require('json-to-pretty-yaml');
-              // const data = YAML.stringify(temp);
-              // console.log(temp);
-              setData(temp);
-              
-            } else {
-              alert("DID Document not Found");
-            }
-          });
-      }
+const DIDDisplayScreen = ({ navigation }) => {
+  const [data, setData] = useState({});
+  const [name, setName] = useState("");
 
-    }, []);
-  
-    const isEmptyObject= (obj)=> {
-      // console.log(obj)
-      return JSON.stringify(obj) === '{}';
+  useEffect(() => {
+    const type = navigation.state.params.type;
+    if (type === "DID_Document") {
+      AsyncStorage.getItem('DID_Document').then(async (res) => {
+        if (res) {
+          const temp = JSON.parse(res);
+          setName(await AsyncStorage.getItem('Name'));
+          setData(temp);
+        } else {
+          alert("DID Document not Found");
+        }
+      });
     }
+  }, []);
 
-    return (
-      <>
-        { !isEmptyObject(data) 
-          ? 
-          <View style={styles.container}>
-                <Text style={styles.title}>Context:</Text>
-                <Text />
-                <Text style={styles.title}>1: {data.context[0]}</Text>
-                <Text />
-                <Text style={styles.title}>2: {data.context[1]}</Text>
-                {/* <FlatList
-                    
-                    style={styles.listStyle}
-                    data={data.context}  
-                    keyExtractor= {property => property}
-                    renderItem = {({item})=> {
-                    // console.log(credential);
-                        return (
-                            <Text >     {item}</Text>
-                        );
-                }}
-                />  */}
-                <Text />
-                <Text style={styles.title}>DID: {data.did}</Text>
-                <Text />
-                <Text style={styles.title}>Name: {name}</Text>
-                <Text />
-                <Text style={styles.title}>Key:</Text>
-                <Text />
-                <Text style={styles.title}>   ID: {data.key.id}</Text>
-                <Text />
-                <Text style={styles.title}>   Method Type: {data.key.methodType}</Text>
-                <Text />
-                <Text style={styles.title}>   Owner: {data.key.owner}</Text>
-                <Text />
-                <Text style={styles.title}>   Public Key: {data.key.publicKey}</Text>
-                <Text />
+  const isEmptyObject = (obj) => {
+    return JSON.stringify(obj) === '{}';
+  };
+
+  return (
+    <ScrollView style={styles.screenContainer} contentContainerStyle={{ padding: 16 }}>
+      {!isEmptyObject(data) ? (
+        <View style={styles.card}>
+          <Text style={styles.headerTitle}>Decentralized Identifier Document</Text>
+          <View style={styles.divider} />
+
+          {/* User Info */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Subject Name</Text>
+            <Text style={styles.valueText}>{name || "Anonymous User"}</Text>
           </View>
-        : null}
-      </>
 
-    );
+          {/* DID */}
+          <View style={styles.section}>
+            <Text style={styles.label}>DID string</Text>
+            <Text style={styles.monospaceText}>{data.did}</Text>
+          </View>
 
+          {/* Contexts */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Context Schemes</Text>
+            {data.context && data.context.map((ctx, idx) => (
+              <Text key={idx} style={styles.monospaceTextSmall}>• {ctx}</Text>
+            ))}
+          </View>
 
-}
+          {/* Verification Keys */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Verification Method Type</Text>
+            <Text style={styles.valueText}>{data.key?.methodType || "RSAVerificationKey2018"}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Owner Reference</Text>
+            <Text style={styles.monospaceTextSmall}>{data.key?.owner}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Public Key Hex</Text>
+            <Text style={[styles.monospaceTextSmall, styles.publicKeyBox]}>
+              {data.key?.publicKey}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+};
 
 const styles = StyleSheet.create({
-    title: {
-      fontSize: 15,
-    },
-    container: {
-        margin:5,
-        padding: 10,
-        // flex: 1,
-        flexDirection: 'column',
-        borderWidth: 5,
-        borderColor: 'black',
-        // justifyContent: 'center',
-      },
-  });
-  
+  screenContainer: {
+    flex: 1,
+    backgroundColor: '#050d1a',
+  },
+  card: {
+    backgroundColor: '#0a1628',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 255, 0.12)',
+    padding: 24,
+    elevation: 3,
+  },
+  headerTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(0, 212, 255, 0.15)',
+    marginBottom: 20,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  label: {
+    color: '#00d4ff',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  valueText: {
+    color: '#e2e8f0',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  monospaceText: {
+    color: '#e2e8f0',
+    fontFamily: 'monospace',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  monospaceTextSmall: {
+    color: '#94a3b8',
+    fontFamily: 'monospace',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  publicKeyBox: {
+    backgroundColor: 'rgba(0, 212, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 255, 0.08)',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 4,
+  }
+});
+
 export default DIDDisplayScreen;

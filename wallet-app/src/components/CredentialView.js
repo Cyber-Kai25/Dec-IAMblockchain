@@ -1,83 +1,71 @@
-import React, {useState,useEffect} from 'react';
-import { Text, StyleSheet, Button, View, TouchableOpacity,FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Text, StyleSheet, View, FlatList } from 'react-native';
 
-const CredentialView = ({object}) => {
-    
-    const [listData,setListData] = useState([]);
-  
-    useEffect(() => {
-        // console.log(properties);
-        // Object.keys(obj)
-        const temp =Object.keys(object.credentialSubject);
-        const tempData=[];
-        temp.forEach(element => {
-            const curr = object.credentialSubject[element];
-            tempData.push({
-                [element] : curr
-            })
+const CredentialView = ({ object }) => {
+  const [listData, setListData] = useState([]);
+
+  useEffect(() => {
+    if (object && object.credentialSubject) {
+      const temp = Object.keys(object.credentialSubject);
+      const tempData = [];
+      temp.forEach(element => {
+        const curr = object.credentialSubject[element];
+        tempData.push({
+          [element]: curr
         });
-        // console.log(tempData);
-        setListData(tempData);
-        // console.log(Object.keys(object.credentialSubject));
-    }, []);
-  
-    const nameFormatter = (data)=>{
-        console.log(data.length);
-        var temp =  "";
-        // for (var i=0;i<data.length;i=i++){
-        //     const curr = data.charAt(i);
-            // if(i==0){
-            //     temp.concat(curr.toUpperCase());
-            // }else{
-                
-            //     if(curr == curr.toUpperCase()){
-            //         // temp += ' ';
-            //     }
-            //     temp.concat(curr);
-            // }
-            // console.log(curr);
-        // }
-        // console.log(temp);
-        // temp = temp.subString(0,1).toUpp
-        return temp;
+      });
+      setListData(tempData);
     }
-    
-    return (
-        <View>
-            {/* <Text style = {styles.textStyle}>ID: {object.credentialSubject['id']}</Text> */}
-            {/* <Text /> */}
-            <FlatList
-            data={listData}  
-            // data={object.credentialSubject}  
-            keyExtractor= {property => Object.keys(property)[0]}
-            renderItem = {({item})=> {
-            // console.log(item);
-                return (
-                
-                <View>
-                    {/* <Text style = {styles.textStyle}>{(Object.keys(item)[0])}: {object.credentialSubject[Object.keys(item)[0]]}</Text> */}
-                    <Text style = {styles.textStyle}>{Object.keys(item)[0]}: {object.credentialSubject[Object.keys(item)[0]]}</Text>
-                    <Text />
-                </View>
-                );
-        }}
-        /> 
-        
-      </View>
-    );
+  }, [object]);
 
+  // Format camelCase keys to Human Readable labels
+  const formatLabel = (key) => {
+    const result = key.replace(/([A-Z])/g, " $1");
+    return result.charAt(0).toUpperCase() + result.slice(1);
+  };
 
-}
+  return (
+    <View style={styles.container}>
+      {listData.map((item) => {
+        const keyName = Object.keys(item)[0];
+        const val = object.credentialSubject[keyName];
+        return (
+          <View key={keyName} style={styles.attributeRow}>
+            <Text style={styles.label}>{formatLabel(keyName)}</Text>
+            <Text style={styles.valueText}>{String(val)}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-    text: {
-      fontSize: 30,
-    },
-    container: {
-        flex: 1,
-        flexDirection: 'column',
-        justifyContent: 'center',
-      },
-  });
-  
+  container: {
+    marginTop: 8,
+  },
+  attributeRow: {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  label: {
+    color: '#00d4ff',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  valueText: {
+    color: '#e2e8f0',
+    fontSize: 15,
+    fontWeight: '600',
+  }
+});
+
 export default CredentialView;
