@@ -47,6 +47,14 @@ const UserModel = new Schema({
     type: String,
     default: "",
   },
+  // To record credentials immediately upon issuance directly on the user profile
+  issuedCredentials: [{
+    credName: String,
+    credDid: String,
+    date: String,
+    ownerDid: String,
+    walletName: String // The name registered in the wallet app (from blockchain)
+  }]
 });
 
 module.exports = mongoose.model("users", UserModel);

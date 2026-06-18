@@ -22,9 +22,12 @@
 
   /* Secondary accent */
   --accent2:        #06b6d4;
+  --accent-cyan:    #00d4ff;
+  --accent-green:   #10b981;
   --success:        #10b981;
   --warning:        #f59e0b;
   --danger:         #ef4444;
+
 
   /* Text */
   --text-primary:   #e2e8f0;

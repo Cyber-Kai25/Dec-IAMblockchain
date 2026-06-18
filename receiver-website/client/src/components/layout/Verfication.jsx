@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { QRCode } from "react-qr-svg";
-import { Toast, ToastContainer } from "react-bootstrap";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import socketio from "socket.io-client";
@@ -84,24 +83,94 @@ const Verification = () => {
 
   return (
     <div className="container py-5" style={{ minHeight: "calc(100vh - 65px)", color: "var(--text-primary)" }}>
-      {/* Toast Notification */}
-      <ToastContainer position="top-end" className="p-3">
-        <Toast
-          show={toastMssg !== ""}
-          onClose={() => setToastMssg("")}
-          delay={4000}
-          autohide
-          style={{ background: "rgba(10,22,40,0.85)", border: "1px solid var(--accent-purple)", backdropFilter: "blur(10px)" }}
+      {/* ── Large Centered Notification Modal ── */}
+      {toastMssg !== "" && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(5, 13, 26, 0.75)",
+            backdropFilter: "blur(10px)",
+            animation: "fadeIn 0.2s ease",
+          }}
+          onClick={() => setToastMssg("")}
         >
-          <Toast.Header closeVariant="white" style={{ background: "transparent", color: "var(--text-primary)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-            <span className="status-dot green me-2"></span>
-            <strong className="me-auto">Notification</strong>
-          </Toast.Header>
-          <Toast.Body style={{ color: "var(--text-secondary)", fontSize: "0.88rem" }}>
-            {toastMssg}
-          </Toast.Body>
-        </Toast>
-      </ToastContainer>
+          <div
+            style={{
+              background: "rgba(10, 22, 40, 0.95)",
+              border: "1px solid rgba(16, 185, 129, 0.4)",
+              borderRadius: "24px",
+              padding: "52px 60px",
+              textAlign: "center",
+              maxWidth: "480px",
+              width: "90%",
+              boxShadow: "0 0 60px rgba(16,185,129,0.25), 0 30px 80px rgba(0,0,0,0.5)",
+              animation: "fadeInUp 0.35s ease",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Big checkmark icon */}
+            <div
+              style={{
+                width: "80px",
+                height: "80px",
+                borderRadius: "50%",
+                background: "rgba(16,185,129,0.15)",
+                border: "2px solid rgba(16,185,129,0.4)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 24px auto",
+                fontSize: "2.4rem",
+                boxShadow: "0 0 32px rgba(16,185,129,0.3)",
+              }}
+            >
+              ✅
+            </div>
+
+            <h2
+              style={{
+                fontWeight: 800,
+                fontSize: "1.8rem",
+                letterSpacing: "-0.02em",
+                color: "var(--text-primary)",
+                marginBottom: "12px",
+              }}
+            >
+              {toastMssg}
+            </h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginBottom: "28px", lineHeight: 1.6 }}>
+              The credential has been successfully verified on-chain and accepted by the receiver portal.
+            </p>
+
+            <button
+              onClick={() => setToastMssg("")}
+              style={{
+                padding: "12px 40px",
+                borderRadius: "10px",
+                border: "none",
+                background: "linear-gradient(135deg, var(--success), #059669)",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "1rem",
+                cursor: "pointer",
+                boxShadow: "0 4px 20px rgba(16,185,129,0.35)",
+                transition: "all 0.2s ease",
+              }}
+            >
+              Got it
+            </button>
+
+            <p style={{ marginTop: "16px", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              Click anywhere or press Got it to dismiss
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="row justify-content-center">
         <div className="col-lg-10 col-xl-9">

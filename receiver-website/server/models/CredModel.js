@@ -31,6 +31,11 @@ const CredModel = new Schema({
     type: String,
     required: true,
   },
+  // The on-chain DID of the wallet-app student who owns this credential
+  ownerDid: {
+    type: String,
+    default: "",
+  },
   date: {
     type: String,
     required: true,

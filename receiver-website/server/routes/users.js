@@ -132,4 +132,63 @@ router.post("/login", (req, res) => {
   });
 });
 
+// @route GET api/users/allStudentsWithCredentials
+// @desc Returns all non-admin students in receiver-db with their credential DIDs.
+//       Used by the issuer admin dashboard to populate the revocation panel.
+// @access Public (admin only in practice)
+
+const Credential = require("../models/CredModel");
+
+router.get("/allStudentsWithCredentials", async (req, res) => {
+  try {
+    // 1. Get all non-admin users (actual wallet-app students who registered)
+    const students = await User.find(
+      { isAdmin: false },
+      { name: 1, email: 1, studentId: 1, did: 1 }
+    ).sort({ name: 1 });
+
+    if (students.length === 0) {
+      return res.status(200).json({ students: [] });
+    }
+
+    // 2. For each student, fetch their credential DIDs from the credentials collection
+    const studentIds = students.map((s) => s.studentId);
+    const allCreds = await Credential.find(
+      { studentId: { $in: studentIds } },
+      { studentId: 1, credDid: 1, credName: 1, date: 1, ownerDid: 1 }
+    );
+
+    // 3. Group credentials by studentId
+    const credsByStudentId = {};
+    allCreds.forEach((c) => {
+      if (!credsByStudentId[c.studentId]) {
+        credsByStudentId[c.studentId] = [];
+      }
+      credsByStudentId[c.studentId].push({
+        credDid: c.credDid,
+        credName: c.credName || "Credential",
+        date: c.date,
+        ownerDid: c.ownerDid || "",   // ← wallet-app student's on-chain DID
+      });
+    });
+
+
+    // 4. Merge into student objects
+    const result = students.map((s) => ({
+      _id: s._id,
+      name: s.name,
+      email: s.email,
+      studentId: s.studentId,
+      did: s.did || "",
+      credentials: credsByStudentId[s.studentId] || [],
+    }));
+
+    res.status(200).json({ students: result });
+  } catch (err) {
+    console.error("Error fetching students with credentials:", err);
+    res.status(500).json({ error: err.message || err });
+  }
+});
+
 module.exports = router;
+

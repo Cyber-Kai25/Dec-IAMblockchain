@@ -16,6 +16,7 @@ import Dashboard from "./components/layout/Dashboard";
 import CreateSchema from "./components/layout/CreateSchema";
 import CreateDid from "./components/layout/CreateDid";
 import CredentialList from "./components/layout/CredentialList";
+import AdminDashboard from "./components/layout/AdminDashboard";
 
 require("dotenv").config();
 
@@ -44,6 +45,7 @@ function App() {
           <PrivateRoute exact path="/createSchema" component={CreateSchema} />
           <PrivateRoute exact path="/createDid" component={CreateDid} />
           <PrivateRoute exact path="/credentials" component={CredentialList} />
+          <PrivateRoute exact path="/admin-dashboard" component={AdminDashboard} />
         </Switch>
       </div>
     </Router>

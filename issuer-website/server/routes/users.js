@@ -132,4 +132,37 @@ router.post("/login", (req, res) => {
   });
 });
 
+// @route GET api/users/allStudents
+// @desc Get all non-admin registered students (for admin revocation panel)
+// @access Public (admin only in practice)
+
+router.get("/allStudents", (req, res) => {
+  // Only find users who are not admins AND have at least one issued credential
+  User.find({ isAdmin: false, "issuedCredentials.0": { $exists: true } }, { name: 1, email: 1, studentId: 1, did: 1, issuedCredentials: 1 })
+    .sort({ name: 1 })
+    .then((users) => {
+      // Map to format expected by AdminDashboard
+      const students = users.map((u) => {
+        const creds = u.issuedCredentials || [];
+        // Use the wallet name from the most recent credential, fallback to issuer DB name
+        const walletName = creds.length > 0 ? creds[creds.length - 1].walletName : u.name;
+        
+        return {
+          _id: u._id,
+          name: walletName,
+          email: u.email,
+          studentId: u.studentId,
+          did: u.did || "",
+          credentials: creds
+        };
+      });
+      res.status(200).json({ students });
+    })
+    .catch((err) => {
+      console.error("Error fetching students:", err);
+      res.status(500).json({ error: err.message || err });
+    });
+});
+
 module.exports = router;
+

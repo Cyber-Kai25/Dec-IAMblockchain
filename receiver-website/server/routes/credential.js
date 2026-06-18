@@ -293,6 +293,7 @@ router.post("/send", (req, res) => {
                       credName: credData.credentialName || "NA",
                       userEmail: user.email,
                       credDid: reqData.credDid,
+                      ownerDid: reqData.userDid,
                       date: datetime,
                       hash: reqData.hash,
                       sign: reqData.sign,
@@ -313,6 +314,10 @@ router.post("/send", (req, res) => {
                   } else {
                     cred.date = datetime;
                     cred.credName = credData.credentialName || cred.credName;
+                    // Update ownerDid if not yet stored
+                    if (!cred.ownerDid && reqData.userDid) {
+                      cred.ownerDid = reqData.userDid;
+                    }
                     cred
                       .save()
                       .then((data) => {

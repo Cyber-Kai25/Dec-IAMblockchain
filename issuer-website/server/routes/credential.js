@@ -13,6 +13,25 @@ const MAIN_BACKEND_PORT = process.env.MAIN_BACKEND_PORT;
 const API_IP = process.env.API_IP;
 
 // ---------------------------------------------------------------------------
+// Helper: make an HTTP request and return parsed JSON
+// ---------------------------------------------------------------------------
+const makeHttpRequest = (options, body) => {
+  return new Promise((resolve, reject) => {
+    const req = http.request(options, (res) => {
+      let raw = "";
+      res.on("data", (chunk) => { raw += chunk; });
+      res.on("end", () => {
+        try { resolve({ status: res.statusCode, data: JSON.parse(raw) }); }
+        catch (e) { reject(e); }
+      });
+    });
+    req.on("error", reject);
+    if (body) req.write(body);
+    req.end();
+  });
+};
+
+// ---------------------------------------------------------------------------
 // Helper: map a known property key to a user's stored field value
 // ---------------------------------------------------------------------------
 const USER_FIELD_MAP = {
@@ -191,6 +210,29 @@ router.post("/create", async (req, res) => {
               { $inc: { issuanceCount: 1 } }
             );
 
+            // 9. Fetch wallet user's name from blockchain and record issuance directly on user
+            try {
+              const nameRes = await makeHttpRequest({
+                hostname: API_IP,
+                port: MAIN_BACKEND_PORT,
+                path: `/getName/${encodeURI(userDid)}`,
+                method: "GET"
+              });
+              const walletName = nameRes.data.name || user.name;
+              
+              user.issuedCredentials.push({
+                credName: schema.name,
+                credDid: parsed.did,
+                date: new Date().toLocaleString(),
+                ownerDid: userDid,
+                walletName: walletName
+              });
+              await user.save();
+            } catch (recordErr) {
+              console.error("Failed to record issuance on user profile:", recordErr);
+              // We still return success since the blockchain issuance succeeded
+            }
+
             res.status(200).json({ credentialDid: parsed.did });
           } catch (parseErr) {
             console.error("Error parsing API response:", parseErr);
@@ -207,6 +249,87 @@ router.post("/create", async (req, res) => {
     request.end();
   } catch (err) {
     console.error("Credential creation error:", err);
+    res.status(500).json({ error: err.message || err });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/credential/stats
+// @desc Returns aggregate statistics for the admin dashboard
+// ---------------------------------------------------------------------------
+router.get("/stats", async (req, res) => {
+  try {
+    const [userCount, schemas] = await Promise.all([
+      User.countDocuments({ isAdmin: false }),
+      Schema.find({}, { name: 1, issuanceCount: 1 }),
+    ]);
+
+    const schemaCount = schemas.length;
+    const totalIssued = schemas.reduce((sum, s) => sum + (s.issuanceCount || 0), 0);
+    const schemaBreakdown = schemas.map((s) => ({
+      name: s.name,
+      count: s.issuanceCount || 0,
+    }));
+
+    res.status(200).json({ userCount, schemaCount, totalIssued, schemaBreakdown });
+  } catch (err) {
+    console.error("Stats error:", err);
+    res.status(500).json({ error: err.message || err });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/credential/revokeByAdmin
+// @desc Admin revokes a credential by credDID and receiverDID.
+//       Signs the proof server-side using stored admin private key.
+// ---------------------------------------------------------------------------
+router.post("/revokeByAdmin", async (req, res) => {
+  const { credDID, receiverDID } = req.body;
+
+  if (!credDID || !receiverDID) {
+    return res.status(400).json({ error: "credDID and receiverDID are required" });
+  }
+
+  try {
+    // Fetch the admin account (issuer)
+    const admin = await User.findOne({ email: "admin@admin.com" });
+    if (!admin || !admin.privateKey || !admin.did) {
+      return res.status(400).json({ error: "Admin account not configured. Please set up a DID first." });
+    }
+
+    // Build and sign the revocation proof (same pattern as credential creation)
+    const hash = objectHash({ credDID, receiverDID, revoker: admin.did });
+    const signHash = await secp.sign(hash, admin.privateKey, { canonical: true });
+    const sign = secp.Signature.fromDER(signHash).toCompactHex();
+
+    const payload = JSON.stringify({
+      credDID,
+      ownerDID: admin.did,
+      receiverDID,
+      hash,
+      sign,
+    });
+
+    const options = {
+      hostname: API_IP,
+      port: MAIN_BACKEND_PORT,
+      path: "/revokeAccess",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload),
+      },
+    };
+
+    const result = await makeHttpRequest(options, payload);
+
+    if (result.status !== 200) {
+      return res.status(result.status).json(result.data);
+    }
+
+    res.status(200).json({ message: "Credential successfully revoked.", detail: result.data });
+  } catch (err) {
+    console.error("Revocation error:", err);
     res.status(500).json({ error: err.message || err });
   }
 });

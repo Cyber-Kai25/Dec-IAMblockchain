@@ -514,3 +514,38 @@
 /* ---- Error feedback ---- */
 .invalid-feedback { color: var(--danger) !important; font-size: 0.78rem; }
 .form-control.is-invalid { border-color: var(--danger) !important; }
+
+/* ---- Admin Revocation Modal ---- */
+.admin-revoke-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(5, 13, 26, 0.82);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.admin-revoke-modal {
+  background: var(--bg-secondary, #0a1628);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-xl, 20px);
+  padding: 36px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 0 40px rgba(239, 68, 68, 0.15), 0 20px 60px rgba(0,0,0,0.5);
+}
+
+/* ---- Custom Scrollbar ---- */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.2);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.4);
+}
+
